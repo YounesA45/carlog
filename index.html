@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>سجل سيارتي | CarLog</title>
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/3202/3202926.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #f1f5f9; padding-bottom: 85px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.2s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="text-slate-800 antialiased select-none">
+
+    <!-- شاشة تسجيل الدخول -->
+    <div id="auth-screen" class="min-h-screen flex items-center justify-center p-4 bg-slate-900">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-xl p-6 space-y-5">
+            <div class="text-center space-y-2">
+                <div class="w-16 h-16 bg-blue-600 text-white rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+                    <i data-lucide="car" class="w-8 h-8"></i>
+                </div>
+                <h1 class="text-2xl font-extrabold text-slate-800">دفتر صيانة المركبة</h1>
+                <p class="text-xs text-slate-500">إدارة متعددة السيارات • الصيانة • الوثائق • الوقود</p>
+            </div>
+
+            <div id="auth-error" class="hidden bg-red-50 text-red-600 text-xs p-3 rounded-lg border border-red-200"></div>
+
+            <form id="auth-form" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">البريد الإلكتروني</label>
+                    <input type="email" id="auth-email" required placeholder="driver@example.com"
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-left" dir="ltr">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">كلمة المرور</label>
+                    <input type="password" id="auth-password" required placeholder="••••••••"
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-left" dir="ltr">
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" id="btn-login" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow">
+                        دخول
+                    </button>
+                    <button type="button" id="btn-register" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-3 rounded-xl transition">
+                        حساب جديد
+                    </button>
+                </div>
+            </form>
+
+            <div class="border-t pt-3 space-y-2 text-center">
+                <button id="btn-demo-mode" class="w-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold py-2.5 rounded-xl text-xs hover:bg-emerald-100 transition">
+                    الدخول الفوري (الوضع المحلي + بياناتك المحفوظة)
+                </button>
+                <button onclick="openModal('modal-firebase-config')" class="text-[11px] text-slate-400 hover:text-slate-600 underline">
+                    إعدادات ربط Firebase السحابي
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- التطبيق الرئيسي -->
+    <div id="app-screen" class="hidden max-w-lg mx-auto">
+        <!-- الشريط العلوي -->
+        <header class="bg-slate-900 text-white p-4 rounded-b-3xl shadow-md sticky top-0 z-20 space-y-3">
+            <div class="flex justify-between items-center gap-2">
+                <!-- اختيار السيارة -->
+                <div class="flex-1 flex items-center gap-1.5 bg-slate-800 px-2.5 py-1.5 rounded-xl border border-slate-700">
+                    <i data-lucide="car" class="w-4 h-4 text-blue-400 shrink-0"></i>
+                    <select id="vehicle-selector" onchange="switchVehicle(this.value)" class="bg-transparent text-white font-bold text-sm w-full outline-none cursor-pointer">
+                    </select>
+                    <button onclick="openModal('modal-add-vehicle')" class="bg-blue-600 hover:bg-blue-500 text-white p-1 rounded-lg shrink-0" title="إضافة سيارة جديدة">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+
+                <!-- أزرار التحكم -->
+                <div class="flex gap-1.5 shrink-0">
+                    <button onclick="openModal('modal-backup')" class="p-2 bg-slate-800 rounded-xl hover:bg-slate-700 text-emerald-400" title="تصدير/استيراد قاعدة البيانات">
+                        <i data-lucide="database" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="openModal('modal-car-info')" class="p-2 bg-slate-800 rounded-xl hover:bg-slate-700" title="تعديل السيارة الحالية">
+                        <i data-lucide="settings" class="w-4 h-4"></i>
+                    </button>
+                    <button id="btn-logout" class="p-2 bg-red-500/20 text-red-400 rounded-xl hover:bg-red-500/30" title="خروج">
+                        <i data-lucide="log-out" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- تحديث العداد السريع -->
+            <div class="bg-slate-800/80 px-3 py-2 rounded-2xl flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="gauge" class="w-4 h-4 text-blue-400"></i>
+                    <span class="text-xs text-slate-300">العداد الحالي:</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="number" id="quick-odometer" class="w-28 bg-slate-900 text-white font-bold text-sm text-center py-1 px-2 rounded-lg border border-slate-700 focus:border-blue-500 outline-none" dir="ltr">
+                    <button onclick="updateOdometer()" class="bg-blue-600 hover:bg-blue-500 text-xs font-bold px-3 py-1.5 rounded-lg transition">
+                        تحديث
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- المحتوى المتغير -->
+        <main class="p-4 space-y-4">
+
+            <!-- 1. الرئيسية -->
+            <section id="tab-dashboard" class="tab-content active space-y-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="font-bold text-slate-700 text-sm">حالة الصيانة الدورية (<span id="rules-count">0</span>)</h2>
+                    <button onclick="openRuleModal()" class="text-xs bg-blue-600 text-white font-bold px-3 py-1.5 rounded-xl shadow-sm">
+                        + إضافة قاعدة
+                    </button>
+                </div>
+                <div id="maintenance-alerts-list" class="grid grid-cols-1 gap-2.5"></div>
+
+                <h2 class="font-bold text-slate-700 text-sm pt-2">تنبيهات الوثائق الإدارية</h2>
+                <div id="documents-alerts-list" class="space-y-2"></div>
+            </section>
+
+            <!-- 2. سجل الصيانة -->
+            <section id="tab-services" class="tab-content space-y-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="font-bold text-slate-700 text-sm">سجل الصيانة والمصاريف</h2>
+                    <button onclick="openModal('modal-service')" class="bg-blue-600 text-white text-xs font-bold px-3 py-2 rounded-xl shadow flex items-center gap-1">
+                        <i data-lucide="plus" class="w-4 h-4"></i> تسجيل صيانة
+                    </button>
+                </div>
+                <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
+                    <span class="text-xs text-slate-500">إجمالي مصاريف هذه السيارة:</span>
+                    <span id="total-service-cost" class="font-extrabold text-blue-600">0 دج</span>
+                </div>
+                <div id="service-logs-list" class="space-y-2.5"></div>
+            </section>
+
+            <!-- 3. الوثائق والوقود -->
+            <section id="tab-docs-fuel" class="tab-content space-y-5">
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h2 class="font-bold text-slate-700 text-sm">الوثائق والبطاقة الرمادية</h2>
+                        <button onclick="openModal('modal-doc')" class="bg-slate-800 text-white text-xs font-bold px-3 py-1.5 rounded-xl">
+                            + تحديث وثيقة
+                        </button>
+                    </div>
+                    <div class="bg-amber-50 border border-amber-200 p-3.5 rounded-2xl">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded">وثيقة دائمة (بدون انتهاء)</span>
+                                <h3 class="font-bold text-sm mt-1">البطاقة الرمادية (Carte Grise)</h3>
+                            </div>
+                            <button onclick="openModal('modal-car-info')" class="text-xs text-amber-800 underline">تعديل</button>
+                        </div>
+                        <p id="carte-grise-details" class="text-xs text-slate-600 mt-1.5"></p>
+                    </div>
+                    <div id="docs-full-list" class="space-y-2"></div>
+                </div>
+
+                <div class="space-y-3 pt-3 border-t">
+                    <div class="flex justify-between items-center">
+                        <h2 class="font-bold text-slate-700 text-sm">سجل الوقود والاستهلاك</h2>
+                        <button onclick="openModal('modal-fuel')" class="bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl">
+                            + تعبئة وقود
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="bg-white p-3 rounded-2xl border border-slate-100 text-center">
+                            <span class="text-[11px] text-slate-400 block">متوسط الاستهلاك</span>
+                            <span id="avg-consumption" class="font-extrabold text-emerald-600 text-base">-- لتر/100كم</span>
+                        </div>
+                        <div class="bg-white p-3 rounded-2xl border border-slate-100 text-center">
+                            <span class="text-[11px] text-slate-400 block">مصاريف الوقود</span>
+                            <span id="total-fuel-cost" class="font-extrabold text-slate-700 text-base">0 دج</span>
+                        </div>
+                    </div>
+                    <div id="fuel-logs-list" class="space-y-2"></div>
+                </div>
+            </section>
+
+            <!-- 4. قطع الغيار -->
+            <section id="tab-parts" class="tab-content space-y-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="font-bold text-slate-700 text-sm">دليل قطع الغيار المتوافقة</h2>
+                    <button onclick="openModal('modal-part')" class="bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl">
+                        + إضافة قطعة
+                    </button>
+                </div>
+                <input type="text" id="search-parts" onkeyup="renderParts()" placeholder="ابحث باسم القطعة أو الرقم المرجعي OEM..."
+                    class="w-full px-4 py-2.5 bg-white rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500">
+                <div id="parts-list" class="space-y-2"></div>
+            </section>
+
+        </main>
+
+        <!-- شريط التنقل السفلي -->
+        <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 max-w-lg mx-auto flex justify-around py-2 z-20">
+            <button onclick="switchTab('dashboard', this)" class="nav-btn text-blue-600 flex flex-col items-center p-1 text-xs font-bold">
+                <i data-lucide="layout-dashboard" class="w-5 h-5 mb-0.5"></i> الرئيسية
+            </button>
+            <button onclick="switchTab('services', this)" class="nav-btn text-slate-400 flex flex-col items-center p-1 text-xs font-bold">
+                <i data-lucide="wrench" class="w-5 h-5 mb-0.5"></i> الصيانة
+            </button>
+            <button onclick="switchTab('docs-fuel', this)" class="nav-btn text-slate-400 flex flex-col items-center p-1 text-xs font-bold">
+                <i data-lucide="file-text" class="w-5 h-5 mb-0.5"></i> الوثائق والوقود
+            </button>
+            <button onclick="switchTab('parts', this)" class="nav-btn text-slate-400 flex flex-col items-center p-1 text-xs font-bold">
+                <i data-lucide="cog" class="w-5 h-5 mb-0.5"></i> قطع الغيار
+            </button>
+        </nav>
+    </div>
+
+    <!-- ================= النوافذ المنبثقة (Modals) ================= -->
+
+    <!-- نافذة إضافة سيارة جديدة -->
+    <div id="modal-add-vehicle" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md p-5 space-y-3">
+            <h3 class="font-bold text-lg">إضافة سيارة جديدة</h3>
+            <input id="new-veh-name" placeholder="اسم السيارة (مثال: Chery QQ 2013)" class="w-full p-2.5 border rounded-xl text-sm">
+            <input id="new-veh-plate" placeholder="رقم اللوحة" class="w-full p-2.5 border rounded-xl text-sm">
+            <input id="new-veh-odo" type="number" placeholder="عداد الكيلومترات الحالي" class="w-full p-2.5 border rounded-xl text-sm">
+            <div class="flex gap-2 pt-2">
+                <button onclick="createNewVehicle()" class="flex-1 bg-blue-600 text-white font-bold py-2.5 rounded-xl">إنشاء</button>
+                <button onclick="closeModal('modal-add-vehicle')" class="flex-1 bg-slate-100 font-bold py-2.5 rounded-xl">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة تعديل بيانات السيارة الحالية -->
+    <div id="modal-car-info" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md p-5 space-y-3">
+            <h3 class="font-bold text-lg">بيانات السيارة والبطاقة الرمادية</h3>
+            <input id="inp-car-name" placeholder="اسم وطراز السيارة" class="w-full p-2.5 border rounded-xl text-sm">
+            <input id="inp-car-plate" placeholder="رقم التسجيل (اللوحة)" class="w-full p-2.5 border rounded-xl text-sm">
+            <input id="inp-car-vin" placeholder="رقم الهيكل (VIN) من البطاقة الرمادية" class="w-full p-2.5 border rounded-xl text-sm">
+            <input id="inp-car-notes" placeholder="ملاحظات البطاقة الرمادية" class="w-full p-2.5 border rounded-xl text-sm">
+            <div class="flex gap-2 pt-2">
+                <button onclick="saveCarInfo()" class="flex-1 bg-blue-600 text-white font-bold py-2.5 rounded-xl">حفظ</button>
+                <button onclick="deleteCurrentVehicle()" class="bg-red-50 text-red-600 font-bold px-3 py-2.5 rounded-xl text-xs">حذف السيارة</button>
+                <button onclick="closeModal('modal-car-info')" class="flex-1 bg-slate-100 font-bold py-2.5 rounded-xl">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة تصدير واستيراد قاعدة البيانات -->
+    <div id="modal-backup" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md p-5 space-y-4">
+            <h3 class="font-bold text-lg flex items-center gap-2">
+                <i data-lucide="database" class="w-5 h-5 text-emerald-600"></i> إدارة قاعدة البيانات
+            </h3>
+            <p class="text-xs text-slate-500">يمكنك تنزيل نسخة احتياطية كاملة (جميع السيارات والسجلات) كملف JSON أو استيرادها لنقل بياناتك.</p>
+            
+            <button onclick="exportDatabase()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2">
+                <i data-lucide="download" class="w-4 h-4"></i> تحميل قاعدة البيانات (Export JSON)
+            </button>
+
+            <div class="border-t pt-3 space-y-2">
+                <label class="block text-xs font-bold text-slate-700">استيراد قاعدة بيانات من ملف JSON:</label>
+                <input type="file" id="import-file-input" accept=".json" class="w-full text-xs border p-2 rounded-xl bg-slate-50">
+                <button onclick="importDatabase()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
+                    <i data-lucide="upload" class="w-4 h-4"></i> استيراد واستبدال البيانات
+                </button>
+            </div>
+
+            <button onclick="closeModal('modal-backup')" class="w-full bg-slate-100 font-bold py-2.5 rounded-xl text-sm">إغلاق</button>
+        </div>
+    </div>
+
+    <!-- نافذة إعدادات Firebase -->
+    <div id="modal-firebase-config" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md p-5 space-y-3">
+            <h3 class="font-bold text-lg">إعدادات Firebase السحابية</h3>
+            <p class="text-xs text-slate-500">الصق كائن <code dir="ltr">firebaseConfig</code> بصيغة JSON للربط الحي:</p>
+            <textarea id="inp-fb-json" rows="5" dir="ltr" placeholder='{"apiKey": "...", "authDomain": "...", "databaseURL": "...", "projectId": "..."}' class="w-full p-2.5 border rounded-xl text-xs font-mono"></textarea>
+            <div class="flex gap-2">
+                <button onclick="saveFirebaseConfig()" class="flex-1 bg-blue-600 text-white font-bold py-2.5 rounded-xl text-sm">حفظ وتفعيل</button>
+                <button onclick="closeModal('modal-firebase-config')" class="flex-1 bg-slate-100 font-bold py-2.5 rounded-xl text-sm">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة إضافة/تعديل قاعدة صيانة -->
+    <div id="modal-rule" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md p-5 space-y-3">
+            <h3 id="modal-rule-title" class="font-bold text-lg">قاعدة تنبيه صيانة دورية</h3>
+            <input type="hidden" id="inp-rule-id">
+            <div>
+                <label class="text-xs text-slate-500">اسم القطعة أو الصيانة</label>
+                <input id="inp-rule-name" placeholder="مثال: زيت وفلتر المحرك" class="w-full p-2.5 border rounded-xl text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-slate-500">معدل التغيير (كل كم كيلومتر؟)</label>
+                <input id="inp-rule-interval" type="number" placeholder="مثال: 10000" class="w-full p-2.5 border rounded-xl text-sm">
+            </div>
+            <div>
+                <label class="text-xs text-slate-500">عداد الكيلومترات عند آخر تغيير</label>
+                <input id="inp-rule-last" type="number" placeholder="مثال: 147911" class="w-full p-2.5 border rounded-xl text-sm">
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="saveRule()" class="flex-1 bg-blue-600 text-white font-bold py-2.5 rounded-xl">حفظ</button>
+                <button onclick="closeModal('modal-rule')" class="flex-1 bg-slate-100 font-bold py-2.5 rounded-xl">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة تسجيل صيانة -->
+    <div id="modal-service" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md p-5 space-y-3">
+            <h3 class="font-bold text-lg">تسجيل عملية صيانة جديدة</h3>
+            <select id="inp-srv-rule" class="w-full p-2.5 border rounded-xl text-sm bg-white">
+                <option value="">-- صيانة عامة (غير مرتبطة بقاعدة دورية) --</option>
+            </select>
+            <input id="inp-srv-title" placeholder="وصف الخدمة (مثال: تغيير زيت + فلتر)" class="w-full p-2.5 border rounded-xl text-sm">
+            <div class="grid grid-cols-2 gap-2">
+                <input id="inp-srv-date" type="date" class="w-full p-2.5 border rounded-xl text-sm">
+                <input id="inp-srv-km" type="number" placeholder="العداد (كم)" class="w-full p-2.5 border rounded-xl text-sm">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <input id="inp-srv-cost" type="number" placeholder="الثمن (دج)" class="w-full p-2.5 border rounded-xl text-sm">
+                <input id="inp-srv-shop" placeholder="اسم المحل / الورشة" class="w-full p-2.5 border rounded-xl text-sm">
+            </div>
+            <input id="inp-srv-notes" placeholder="ملاحظات إضافية" class="w-full p-2.5 border rounded-xl text-sm">
+            <div class="flex gap-2 pt-2">
+                <button onclick="saveService()" class="flex-1 bg-blue-600 text-white font-bold py-2.5 rounded-xl">حفظ وتحديث العداد</button>
+                <button onclick="closeModal('modal-service')" class="flex-1 bg-slate-100 font-bold py-2.5 rounded-xl">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة تحديث وثيقة -->
+    <div id="modal-doc" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md p-5 space-y-3">
+            <h3 class="font-bold text-lg">تحديث وثيقة رسمية</h3>
+            <select id="inp-doc-type" class="w-full p-2.5 border rounded-xl text-sm bg-white">
+                <option value="assurance">التأمين (Assurance)</option>
+                <option value="controle">المراقبة التقنية (Contrôle Technique)</option>
+                <option value="gpl">فحص خزان الغاز (Contrôle GPL)</option>
+                <option value="vignette">قسيمة السيارات (Vignette)</option>
+            </select>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-xs text-slate-500">تاريخ البداية (من)</label>
+                    <input id="inp-doc-start" type="date" class="w-full p-2 border rounded-xl text-sm">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-500">تاريخ النهاية (إلى)</label>
+                    <input id="inp-doc-end" type="date" class="w-full p-2 border rounded-xl text-sm">
+                </div>
+            </div>
+            <input id="inp-doc-cost" type="number" placeholder="التكلفة (دج)" class="w-full p-2.5 border rounded-xl text-sm">
+            <input id="inp-doc-notes" placeholder="ملاحظات" class="w-full p-2.5 border rounded-xl text-sm">
+            <div class="flex gap-2 pt-2">
+                <button onclick="saveDoc()" class="flex-1 bg-blue-600 text-white font-bold py-2.5 rounded-xl">حفظ</button>
+                <button onclick="closeModal('modal-doc')" class="flex-1 bg-slate-100 font-bold py-2.5 rounded-xl">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة تعبئة الوقود -->
+    <div id="modal-fuel" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md p-5 space-y-3">
+            <h3 class="font-bold text-lg">تسجيل تعبئة وقود</h3>
+            <div class="grid grid-cols-2 gap-2">
+                <select id="inp-fuel-type" class="w-full p-2.5 border rounded-xl text-sm bg-white">
+                    <option value="GPL">غاز (GPL)</option>
+                    <option value="Essence">بنزين (Essence)</option>
+                    <option value="Diesel">مازوت (Diesel)</option>
+                </select>
+                <input id="inp-fuel-date" type="date" class="w-full p-2.5 border rounded-xl text-sm">
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+                <input id="inp-fuel-km" type="number" placeholder="العداد (كم)" class="w-full p-2.5 border rounded-xl text-sm">
+                <input id="inp-fuel-liters" type="number" step="0.1" placeholder="اللترات" class="w-full p-2.5 border rounded-xl text-sm">
+                <input id="inp-fuel-cost" type="number" placeholder="المبلغ (دج)" class="w-full p-2.5 border rounded-xl text-sm">
+            </div>
+            <label class="flex items-center gap-2 text-xs text-slate-600 pt-1">
+                <input type="checkbox" id="inp-fuel-full" checked class="w-4 h-4 rounded text-blue-600">
+                تعبئة خزان كامل (Full Tank) لحساب الاستهلاك
+            </label>
+            <div class="flex gap-2 pt-2">
+                <button onclick="saveFuel()" class="flex-1 bg-emerald-600 text-white font-bold py-2.5 rounded-xl">حفظ</button>
+                <button onclick="closeModal('modal-fuel')" class="flex-1 bg-slate-100 font-bold py-2.5 rounded-xl">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة إضافة قطعة غيار -->
+    <div id="modal-part" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md p-5 space-y-3">
+            <h3 class="font-bold text-lg">حفظ رقم قطعة غيار</h3>
+            <input id="inp-part-name" placeholder="اسم القطعة" class="w-full p-2.5 border rounded-xl text-sm">
+            <input id="inp-part-oem" placeholder="الرقم المرجعي (OEM)" class="w-full p-2.5 border rounded-xl text-sm" dir="ltr">
+            <div class="grid grid-cols-2 gap-2">
+                <input id="inp-part-brand" placeholder="الماركة" class="w-full p-2.5 border rounded-xl text-sm">
+                <input id="inp-part-price" type="number" placeholder="آخر سعر (دج)" class="w-full p-2.5 border rounded-xl text-sm">
+            </div>
+            <input id="inp-part-notes" placeholder="ملاحظات التوافق" class="w-full p-2.5 border rounded-xl text-sm">
+            <div class="flex gap-2 pt-2">
+                <button onclick="savePart()" class="flex-1 bg-blue-600 text-white font-bold py-2.5 rounded-xl">حفظ</button>
+                <button onclick="closeModal('modal-part')" class="flex-1 bg-slate-100 font-bold py-2.5 rounded-xl">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(() => {});
+            });
+        }
+    </script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+        // البيانات الافتراضية المستخرجة من سجلك القديم
+        const defaultInitialState = {
+            activeVehicleId: "veh_1",
+            vehicles: {
+                "veh_1": {
+                    info: {
+                        name: "سيارتي الرئيسية",
+                        plate: "00000-118-16",
+                        odometer: 157500,
+                        vin: "",
+                        notes: "تم استيراد بيانات الصيانة القديمة تلقائياً"
+                    },
+                    rules: {
+                        r_oil: { name: "زيت وفلتر المحرك", interval: 10000, lastKm: 147911 },
+                        r_air: { name: "فلتر الهواء", interval: 20000, lastKm: 133000 },
+                        r_belt: { name: "حزام المحرك (لاشان)", interval: 60000, lastKm: 149363 },
+                        r_plugs: { name: "الشموع (ليبوجي)", interval: 30000, lastKm: 133000 },
+                        r_battery: { name: "البطارية", interval: 80000, lastKm: 87000 },
+                        r_brakes: { name: "المكابح (بلاكات)", interval: 40000, lastKm: 133000 },
+                        r_nettoyage: { name: "Nettoyage catalyseur", interval: 60000, lastKm: 97000 },
+                        r_doigts: { name: "les doigts", interval: 50000, lastKm: 134000 },
+                        r_pump: { name: "مضخة ماء", interval: 80000, lastKm: 85000 },
+                        r_papillon: { name: "papillon", interval: 40000, lastKm: 133000 },
+                        r_disque: { name: "disque de frein", interval: 80000, lastKm: 133000 },
+                        r_plaque: { name: "plaque de frein", interval: 40000, lastKm: 133000 },
+                        r_faisceaux: { name: "les faisceaux", interval: 50000, lastKm: 134000 },
+                        r_lampe: { name: "lampe code", interval: 30000, lastKm: 137451 },
+                        r_croix: { name: "croix de distribution", interval: 60000, lastKm: 149363 },
+                        r_gpl_filter: { name: "فيلتر سيرغاز", interval: 15000, lastKm: 157427 }
+                    },
+                    docs: {
+                        assurance: { title: "التأمين (Assurance)", start: "2026-01-01", end: "2027-01-01", cost: 18000, notes: "" },
+                        controle: { title: "المراقبة التقنية", start: "2026-03-01", end: "2027-03-01", cost: 2500, notes: "" }
+                    },
+                    services: {},
+                    fuel: {},
+                    parts: {}
+                }
+            }
+        };
+
+        let appState = JSON.parse(JSON.stringify(defaultInitialState));
+        let auth = null, db = null, currentUser = null, isDemoMode = false;
+
+        function initFirebaseIfConfigured() {
+            const savedCfg = localStorage.getItem('carlog_fb_config');
+            if (!savedCfg) return false;
+            try {
+                const cfg = JSON.parse(savedCfg);
+                if (!cfg.apiKey) return false;
+                const app = initializeApp(cfg);
+                auth = getAuth(app);
+                db = getDatabase(app);
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        currentUser = user;
+                        isDemoMode = false;
+                        showApp();
+                        listenToRealtimeData(user.uid);
+                    } else if (!isDemoMode) {
+                        showAuth();
+                    }
+                });
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        const hasFirebase = initFirebaseIfConfigured();
+
+        function getActiveVehicle() {
+            if (!appState.vehicles[appState.activeVehicleId]) {
+                const firstKey = Object.keys(appState.vehicles)[0];
+                if (firstKey) appState.activeVehicleId = firstKey;
+            }
+            return appState.vehicles[appState.activeVehicleId];
+        }
+
+        // إدارة الحسابات
+        document.getElementById('auth-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!auth) return showError("يرجى ضبط إعدادات Firebase أولاً أو استخدام الوضع المحلي.");
+            try {
+                await signInWithEmailAndPassword(auth, document.getElementById('auth-email').value, document.getElementById('auth-password').value);
+            } catch (err) {
+                showError("فشل تسجيل الدخول: تحقق من البيانات.");
+            }
+        });
+
+        document.getElementById('btn-register').addEventListener('click', async () => {
+            if (!auth) return showError("يرجى ضبط إعدادات Firebase أولاً أو استخدام الوضع المحلي.");
+            try {
+                const cred = await createUserWithEmailAndPassword(auth, document.getElementById('auth-email').value, document.getElementById('auth-password').value);
+                await set(ref(db, `users/${cred.user.uid}/carlog_data`), appState);
+            } catch (err) {
+                showError("تعذر إنشاء الحساب: " + err.message);
+            }
+        });
+
+        document.getElementById('btn-demo-mode').addEventListener('click', () => {
+            isDemoMode = true;
+            const saved = localStorage.getItem('carlog_multi_data_v1');
+            if (saved) {
+                appState = JSON.parse(saved);
+            } else {
+                appState = JSON.parse(JSON.stringify(defaultInitialState));
+            }
+            showApp();
+            renderAll();
+        });
+
+        document.getElementById('btn-logout').addEventListener('click', () => {
+            if (isDemoMode) {
+                isDemoMode = false;
+                showAuth();
+            } else if (auth) {
+                signOut(auth);
+            }
+        });
+
+        window.saveFirebaseConfig = () => {
+            try {
+                const parsed = JSON.parse(document.getElementById('inp-fb-json').value);
+                localStorage.setItem('carlog_fb_config', JSON.stringify(parsed));
+                location.reload();
+            } catch (e) {
+                alert("صيغة JSON غير صحيحة");
+            }
+        };
+
+        function listenToRealtimeData(uid) {
+            const dataRef = ref(db, `users/${uid}/carlog_data`);
+            onValue(dataRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    appState = snapshot.val();
+                } else {
+                    set(dataRef, appState);
+                }
+                renderAll();
+            });
+        }
+
+        function syncData() {
+            if (isDemoMode) {
+                localStorage.setItem('carlog_multi_data_v1', JSON.stringify(appState));
+                renderAll();
+            } else if (currentUser && db) {
+                set(ref(db, `users/${currentUser.uid}/carlog_data`), appState);
+            }
+        }
+
+        // إدارة تعدد السيارات
+        window.switchVehicle = (vehId) => {
+            appState.activeVehicleId = vehId;
+            syncData();
+        };
+
+        window.createNewVehicle = () => {
+            const name = document.getElementById('new-veh-name').value.trim();
+            const plate = document.getElementById('new-veh-plate').value.trim();
+            const odo = parseInt(document.getElementById('new-veh-odo').value) || 0;
+            if (!name) return alert("أدخل اسم السيارة");
+
+            const newId = 'veh_' + Date.now();
+            appState.vehicles[newId] = {
+                info: { name, plate, odometer: odo, vin: "", notes: "" },
+                rules: {
+                    r_oil: { name: "زيت وفلتر المحرك", interval: 10000, lastKm: odo },
+                    r_air: { name: "فلتر الهواء", interval: 20000, lastKm: odo }
+                },
+                docs: {},
+                services: {},
+                fuel: {},
+                parts: {}
+            };
+            appState.activeVehicleId = newId;
+            syncData();
+            closeModal('modal-add-vehicle');
+        };
+
+        window.deleteCurrentVehicle = () => {
+            const keys = Object.keys(appState.vehicles);
+            if (keys.length <= 1) return alert("لا يمكن حذف السيارة الوحيدة في الحساب.");
+            if (confirm("هل أنت متأكد من حذف هذه السيارة بكل سجلاتها؟")) {
+                delete appState.vehicles[appState.activeVehicleId];
+                appState.activeVehicleId = Object.keys(appState.vehicles)[0];
+                syncData();
+                closeModal('modal-car-info');
+            }
+        };
+
+        // تصدير واستيراد قاعدة البيانات
+        window.exportDatabase = () => {
+            const dataStr = JSON.stringify(appState, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            const date = new Date().toISOString().split('T')[0];
+            a.href = url;
+            a.download = `carlog_backup_${date}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+
+        window.importDatabase = () => {
+            const fileInput = document.getElementById('import-file-input');
+            const file = fileInput.files[0];
+            if (!file) return alert("اختر ملف JSON أولاً");
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (!imported.vehicles || !imported.activeVehicleId) {
+                        return alert("بنية الملف غير صالحة لتطبيق CarLog");
+                    }
+                    appState = imported;
+                    syncData();
+                    closeModal('modal-backup');
+                    alert("تم استيراد قاعدة البيانات بنجاح!");
+                } catch (err) {
+                    alert("خطأ في قراءة الملف: تأكد أنه ملف JSON سليم.");
+                }
+            };
+            reader.readAsText(file);
+        };
+
+        // عمليات السيارة النشطة
+        window.updateOdometer = () => {
+            const veh = getActiveVehicle();
+            const val = parseInt(document.getElementById('quick-odometer').value);
+            if (!val || val < 0) return alert("أدخل رقماً صحيحاً للعداد");
+            veh.info.odometer = val;
+            syncData();
+        };
+
+        window.saveCarInfo = () => {
+            const veh = getActiveVehicle();
+            veh.info.name = document.getElementById('inp-car-name').value || "سيارتي";
+            veh.info.plate = document.getElementById('inp-car-plate').value || "";
+            veh.info.vin = document.getElementById('inp-car-vin').value || "";
+            veh.info.notes = document.getElementById('inp-car-notes').value || "";
+            syncData();
+            closeModal('modal-car-info');
+        };
+
+        window.openRuleModal = (ruleId = null) => {
+            const veh = getActiveVehicle();
+            if (ruleId && veh.rules && veh.rules[ruleId]) {
+                const r = veh.rules[ruleId];
+                document.getElementById('modal-rule-title').textContent = "تعديل قاعدة الصيانة";
+                document.getElementById('inp-rule-id').value = ruleId;
+                document.getElementById('inp-rule-name').value = r.name;
+                document.getElementById('inp-rule-interval').value = r.interval;
+                document.getElementById('inp-rule-last').value = r.lastKm;
+            } else {
+                document.getElementById('modal-rule-title').textContent = "إضافة قاعدة صيانة دورية";
+                document.getElementById('inp-rule-id').value = "";
+                document.getElementById('inp-rule-name').value = "";
+                document.getElementById('inp-rule-interval').value = "";
+                document.getElementById('inp-rule-last').value = veh.info.odometer;
+            }
+            openModal('modal-rule');
+        };
+
+        window.saveRule = () => {
+            const veh = getActiveVehicle();
+            if (!veh.rules) veh.rules = {};
+            const id = document.getElementById('inp-rule-id').value || ('r_' + Date.now());
+            const name = document.getElementById('inp-rule-name').value.trim();
+            const interval = parseInt(document.getElementById('inp-rule-interval').value);
+            const lastKm = parseInt(document.getElementById('inp-rule-last').value);
+
+            if (!name || !interval) return alert("أدخل اسم الصيانة ومعدل التكرار");
+            veh.rules[id] = { name, interval, lastKm: isNaN(lastKm) ? veh.info.odometer : lastKm };
+            syncData();
+            closeModal('modal-rule');
+        };
+
+        window.saveService = () => {
+            const veh = getActiveVehicle();
+            if (!veh.services) veh.services = {};
+            const ruleId = document.getElementById('inp-srv-rule').value;
+            const title = document.getElementById('inp-srv-title').value.trim();
+            const date = document.getElementById('inp-srv-date').value || new Date().toISOString().split('T')[0];
+            const km = parseInt(document.getElementById('inp-srv-km').value) || veh.info.odometer;
+            const cost = parseFloat(document.getElementById('inp-srv-cost').value) || 0;
+            const shop = document.getElementById('inp-srv-shop').value || "غير محدد";
+            const notes = document.getElementById('inp-srv-notes').value || "";
+
+            if (!title) return alert("أدخل وصف الخدمة");
+
+            veh.services['srv_' + Date.now()] = { ruleId, title, date, km, cost, shop, notes };
+            if (km > veh.info.odometer) veh.info.odometer = km;
+            if (ruleId && veh.rules && veh.rules[ruleId]) {
+                veh.rules[ruleId].lastKm = km;
+            }
+            syncData();
+            closeModal('modal-service');
+        };
+
+        window.saveDoc = () => {
+            const veh = getActiveVehicle();
+            if (!veh.docs) veh.docs = {};
+            const type = document.getElementById('inp-doc-type').value;
+            const titles = {
+                assurance: "التأمين (Assurance)",
+                controle: "المراقبة التقنية",
+                gpl: "فحص خزان الغاز (GPL)",
+                vignette: "قسيمة السيارات (Vignette)"
+            };
+            const start = document.getElementById('inp-doc-start').value;
+            const end = document.getElementById('inp-doc-end').value;
+            const cost = parseFloat(document.getElementById('inp-doc-cost').value) || 0;
+            const notes = document.getElementById('inp-doc-notes').value || "";
+
+            if (!end) return alert("حدد تاريخ النهاية");
+            veh.docs[type] = { title: titles[type], start, end, cost, notes };
+            syncData();
+            closeModal('modal-doc');
+        };
+
+        window.saveFuel = () => {
+            const veh = getActiveVehicle();
+            if (!veh.fuel) veh.fuel = {};
+            const type = document.getElementById('inp-fuel-type').value;
+            const date = document.getElementById('inp-fuel-date').value || new Date().toISOString().split('T')[0];
+            const km = parseInt(document.getElementById('inp-fuel-km').value);
+            const liters = parseFloat(document.getElementById('inp-fuel-liters').value);
+            const cost = parseFloat(document.getElementById('inp-fuel-cost').value) || 0;
+            const isFull = document.getElementById('inp-fuel-full').checked;
+
+            if (!km || !liters) return alert("أدخل العداد واللترات");
+            veh.fuel['fuel_' + Date.now()] = { type, date, km, liters, cost, isFull };
+            if (km > veh.info.odometer) veh.info.odometer = km;
+            syncData();
+            closeModal('modal-fuel');
+        };
+
+        window.savePart = () => {
+            const veh = getActiveVehicle();
+            if (!veh.parts) veh.parts = {};
+            const name = document.getElementById('inp-part-name').value.trim();
+            const oem = document.getElementById('inp-part-oem').value.trim();
+            const brand = document.getElementById('inp-part-brand').value.trim();
+            const price = parseFloat(document.getElementById('inp-part-price').value) || 0;
+            const notes = document.getElementById('inp-part-notes').value.trim();
+
+            if (!name) return alert("أدخل اسم القطعة");
+            veh.parts['part_' + Date.now()] = { name, oem, brand, price, notes };
+            syncData();
+            closeModal('modal-part');
+        };
+
+        window.deleteItem = (category, id) => {
+            const veh = getActiveVehicle();
+            if (confirm("هل أنت متأكد من الحذف؟")) {
+                delete veh[category][id];
+                syncData();
+            }
+        };
+
+        // العرض
+        function renderAll() {
+            const selector = document.getElementById('vehicle-selector');
+            selector.innerHTML = "";
+            Object.entries(appState.vehicles).forEach(([id, v]) => {
+                const selected = id === appState.activeVehicleId ? 'selected' : '';
+                selector.innerHTML += `<option value="${id}" ${selected} class="text-slate-900">${v.info.name}</option>`;
+            });
+
+            const veh = getActiveVehicle();
+            document.getElementById('quick-odometer').value = veh.info.odometer;
+
+            document.getElementById('inp-car-name').value = veh.info.name;
+            document.getElementById('inp-car-plate').value = veh.info.plate || "";
+            document.getElementById('inp-car-vin').value = veh.info.vin || "";
+            document.getElementById('inp-car-notes').value = veh.info.notes || "";
+            document.getElementById('carte-grise-details').innerHTML = `
+                <strong>اللوحة:</strong> ${veh.info.plate || '---'} | <strong>VIN:</strong> <span dir="ltr">${veh.info.vin || 'غير مسجل'}</span><br>
+                <span class="text-slate-500">${veh.info.notes || ''}</span>
+            `;
+
+            renderDashboard(veh);
+            renderServices(veh);
+            renderDocsAndFuel(veh);
+            window.renderParts();
+            lucide.createIcons();
+        }
+
+        function renderDashboard(veh) {
+            const currentKm = veh.info.odometer;
+            const rulesContainer = document.getElementById('maintenance-alerts-list');
+            const ruleSelect = document.getElementById('inp-srv-rule');
+            rulesContainer.innerHTML = "";
+            ruleSelect.innerHTML = `<option value="">-- صيانة عامة (غير مرتبطة بقاعدة دورية) --</option>`;
+
+            const rulesEntries = Object.entries(veh.rules || {});
+            document.getElementById('rules-count').textContent = rulesEntries.length;
+
+            rulesEntries.sort((a, b) => {
+                const remA = (a[1].lastKm + a[1].interval) - currentKm;
+                const remB = (b[1].lastKm + b[1].interval) - currentKm;
+                return remA - remB;
+            });
+
+            rulesEntries.forEach(([id, rule]) => {
+                ruleSelect.innerHTML += `<option value="${id}">${rule.name}</option>`;
+                const nextKm = rule.lastKm + rule.interval;
+                const remaining = nextKm - currentKm;
+                const percent = Math.min(100, Math.max(0, ((currentKm - rule.lastKm) / rule.interval) * 100));
+
+                let badgeColor = "bg-emerald-100 text-emerald-700";
+                let barColor = "bg-emerald-500";
+                let statusText = `متبقي ${remaining.toLocaleString()} كم`;
+
+                if (remaining <= 0) {
+                    badgeColor = "bg-red-100 text-red-700";
+                    barColor = "bg-red-500";
+                    statusText = `متأخر بـ ${Math.abs(remaining).toLocaleString()} كم!`;
+                } else if (remaining <= 1500) {
+                    badgeColor = "bg-amber-100 text-amber-700";
+                    barColor = "bg-amber-500";
+                }
+
+                rulesContainer.innerHTML += `
+                    <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 space-y-1.5">
+                        <div class="flex justify-between items-center gap-2">
+                            <span class="font-bold text-sm text-slate-800">${rule.name}</span>
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-[11px] font-bold px-2 py-0.5 rounded-full ${badgeColor}">${statusText}</span>
+                                <button onclick="openRuleModal('${id}')" class="p-1 text-slate-400 hover:text-blue-600" title="تعديل">
+                                    <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <button onclick="deleteItem('rules', '${id}')" class="p-1 text-slate-400 hover:text-red-600" title="حذف">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                            <div class="${barColor} h-full transition-all" style="width: ${percent}%"></div>
+                        </div>
+                        <div class="flex justify-between text-[11px] text-slate-400">
+                            <span>آخر تغيير: <strong>${rule.lastKm.toLocaleString()}</strong> كم</span>
+                            <span>الدورة: ${rule.interval.toLocaleString()} كم</span>
+                            <span>القادم: <strong>${nextKm.toLocaleString()}</strong> كم</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            const docsAlertContainer = document.getElementById('documents-alerts-list');
+            docsAlertContainer.innerHTML = "";
+            const today = new Date();
+
+            Object.entries(veh.docs || {}).forEach(([key, doc]) => {
+                const endDate = new Date(doc.end);
+                const diffDays = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+                let statusBadge = `<span class="text-emerald-600 font-bold text-xs">متبقي ${diffDays} يوم</span>`;
+                if (diffDays < 0) statusBadge = `<span class="text-red-600 font-bold text-xs">منتهية منذ ${Math.abs(diffDays)} يوم!</span>`;
+                else if (diffDays <= 30) statusBadge = `<span class="text-amber-600 font-bold text-xs">تنتهي خلال ${diffDays} يوم</span>`;
+
+                docsAlertContainer.innerHTML += `
+                    <div class="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center">
+                        <div>
+                            <div class="font-bold text-sm">${doc.title}</div>
+                            <div class="text-[11px] text-slate-400">من ${doc.start || '--'} إلى ${doc.end}</div>
+                        </div>
+                        ${statusBadge}
+                    </div>
+                `;
+            });
+        }
+
+        function renderServices(veh) {
+            const container = document.getElementById('service-logs-list');
+            container.innerHTML = "";
+            let totalCost = 0;
+
+            const list = Object.entries(veh.services || {}).sort((a, b) => b[1].km - a[1].km);
+            list.forEach(([id, srv]) => {
+                totalCost += srv.cost;
+                container.innerHTML += `
+                    <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-slate-100 space-y-1.5">
+                        <div class="flex justify-between items-start">
+                            <h3 class="font-bold text-sm text-slate-800">${srv.title}</h3>
+                            <span class="font-extrabold text-blue-600 text-sm">${srv.cost.toLocaleString()} دج</span>
+                        </div>
+                        <div class="flex flex-wrap gap-3 text-xs text-slate-500">
+                            <span>📅 ${srv.date}</span>
+                            <span>🛣️ ${srv.km.toLocaleString()} كم</span>
+                            <span>🏪 ${srv.shop}</span>
+                        </div>
+                        ${srv.notes ? `<p class="text-xs text-slate-400 bg-slate-50 p-2 rounded-lg">${srv.notes}</p>` : ''}
+                        <div class="text-left">
+                            <button onclick="deleteItem('services', '${id}')" class="text-[11px] text-red-400 hover:text-red-600">حذف</button>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('total-service-cost').textContent = `${totalCost.toLocaleString()} دج`;
+        }
+
+        function renderDocsAndFuel(veh) {
+            const docsContainer = document.getElementById('docs-full-list');
+            docsContainer.innerHTML = "";
+            Object.entries(veh.docs || {}).forEach(([key, doc]) => {
+                docsContainer.innerHTML += `
+                    <div class="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center">
+                        <div>
+                            <div class="font-bold text-sm">${doc.title}</div>
+                            <div class="text-xs text-slate-500">الصلاحية: ${doc.start || '--'} ➔ ${doc.end}</div>
+                            ${doc.notes ? `<div class="text-[11px] text-slate-400">${doc.notes}</div>` : ''}
+                        </div>
+                        <span class="font-bold text-xs bg-slate-100 px-2.5 py-1 rounded-lg">${doc.cost} دج</span>
+                    </div>
+                `;
+            });
+
+            const fuelContainer = document.getElementById('fuel-logs-list');
+            fuelContainer.innerHTML = "";
+            const fuelList = Object.entries(veh.fuel || {}).sort((a, b) => a[1].km - b[1].km);
+            let totalFuelCost = 0, totalDist = 0, totalLitersForCalc = 0;
+
+            for (let i = 0; i < fuelList.length; i++) {
+                const [id, f] = fuelList[i];
+                totalFuelCost += f.cost;
+                let consumptionText = "";
+
+                if (i > 0 && f.isFull && fuelList[i - 1][1].isFull) {
+                    const dist = f.km - fuelList[i - 1][1].km;
+                    if (dist > 0) {
+                        const cons = (f.liters / dist) * 100;
+                        totalDist += dist;
+                        totalLitersForCalc += f.liters;
+                        consumptionText = `<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-bold">${cons.toFixed(1)} لتر/100كم</span>`;
+                    }
+                }
+
+                fuelContainer.insertAdjacentHTML('afterbegin', `
+                    <div class="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center text-xs">
+                        <div>
+                            <span class="font-bold text-slate-700">${f.type}</span> • <span>${f.date}</span>
+                            <div class="text-slate-400 mt-0.5">${f.km.toLocaleString()} كم | ${f.liters} لتر (${f.cost} دج)</div>
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            ${consumptionText}
+                            <button onclick="deleteItem('fuel', '${id}')" class="text-red-400 text-[10px]">حذف</button>
+                        </div>
+                    </div>
+                `);
+            }
+
+            document.getElementById('total-fuel-cost').textContent = `${totalFuelCost.toLocaleString()} دج`;
+            document.getElementById('avg-consumption').textContent = totalDist > 0
+                ? `${((totalLitersForCalc / totalDist) * 100).toFixed(1)} لتر/100كم`
+                : `-- لتر/100كم`;
+        }
+
+        window.renderParts = () => {
+            const veh = getActiveVehicle();
+            const query = document.getElementById('search-parts').value.toLowerCase();
+            const container = document.getElementById('parts-list');
+            container.innerHTML = "";
+
+            Object.entries(veh.parts || {}).forEach(([id, p]) => {
+                if (p.name.toLowerCase().includes(query) || (p.oem && p.oem.toLowerCase().includes(query))) {
+                    container.innerHTML += `
+                        <div class="bg-white p-3.5 rounded-2xl border border-slate-100 flex justify-between items-center">
+                            <div>
+                                <h4 class="font-bold text-sm">${p.name}</h4>
+                                <div class="text-xs font-mono text-blue-600 mt-0.5">OEM: ${p.oem || '---'}</div>
+                                <div class="text-[11px] text-slate-500 mt-0.5">الماركة: ${p.brand || '---'} | ${p.notes || ''}</div>
+                            </div>
+                            <div class="text-left">
+                                <span class="font-bold text-sm block">${p.price} دج</span>
+                                <button onclick="deleteItem('parts', '${id}')" class="text-[11px] text-red-400">حذف</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+        };
+
+        window.switchTab = (tabName, btn) => {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(b => {
+                b.classList.remove('text-blue-600');
+                b.classList.add('text-slate-400');
+            });
+            btn.classList.remove('text-slate-400');
+            btn.classList.add('text-blue-600');
+        };
+
+        window.openModal = (id) => document.getElementById(id).classList.remove('hidden');
+        window.closeModal = (id) => document.getElementById(id).classList.add('hidden');
+        function showError(msg) { const el = document.getElementById('auth-error'); el.textContent = msg; el.classList.remove('hidden'); }
+        function showApp() { document.getElementById('auth-screen').classList.add('hidden'); document.getElementById('app-screen').classList.remove('hidden'); lucide.createIcons(); }
+        function showAuth() { document.getElementById('app-screen').classList.add('hidden'); document.getElementById('auth-screen').classList.remove('hidden'); }
+
+        lucide.createIcons();
+    </script>
+</body>
+</html>
