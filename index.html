@@ -33,6 +33,7 @@
             </div>
 
             <div id="auth-error" class="hidden bg-red-50 text-red-600 text-xs p-3 rounded-lg border border-red-200"></div>
+            <div id="auth-success" class="hidden bg-emerald-50 text-emerald-700 text-xs p-3 rounded-lg border border-emerald-200"></div>
 
             <form id="auth-form" class="space-y-3">
                 <div>
@@ -41,7 +42,12 @@
                         class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-left" dir="ltr">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">كلمة المرور</label>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-xs font-bold text-slate-600">كلمة المرور</label>
+                        <button type="button" id="btn-reset-password" class="text-[11px] font-bold text-blue-600 hover:underline">
+                            نسيت كلمة المرور؟
+                        </button>
+                    </div>
                     <input type="password" id="auth-password" required placeholder="••••••••"
                         class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-left" dir="ltr">
                 </div>
@@ -419,7 +425,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
         // البيانات الافتراضية المستخرجة من سجلك القديم
@@ -504,21 +510,40 @@
         // إدارة الحسابات
         document.getElementById('auth-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            clearAuthMessages();
             if (!auth) return showError("يرجى ضبط إعدادات Firebase أولاً أو استخدام الوضع المحلي.");
             try {
                 await signInWithEmailAndPassword(auth, document.getElementById('auth-email').value, document.getElementById('auth-password').value);
             } catch (err) {
-                showError("فشل تسجيل الدخول: تحقق من البيانات.");
+                showError("فشل تسجيل الدخول: تحقق من البريد وكلمة المرور.");
             }
         });
 
         document.getElementById('btn-register').addEventListener('click', async () => {
+            clearAuthMessages();
             if (!auth) return showError("يرجى ضبط إعدادات Firebase أولاً أو استخدام الوضع المحلي.");
             try {
                 const cred = await createUserWithEmailAndPassword(auth, document.getElementById('auth-email').value, document.getElementById('auth-password').value);
                 await set(ref(db, `users/${cred.user.uid}/carlog_data`), appState);
             } catch (err) {
                 showError("تعذر إنشاء الحساب: " + err.message);
+            }
+        });
+
+        document.getElementById('btn-reset-password').addEventListener('click', async () => {
+            clearAuthMessages();
+            const email = document.getElementById('auth-email').value.trim();
+            if (!email) {
+                return showError("اكتب بريدك الإلكتروني أولاً في خانة البريد الإلكتروني ثم اضغط على نسيت كلمة المرور.");
+            }
+            if (!auth) {
+                return showError("يرجى ضبط إعدادات Firebase أولاً لإرسال رابط استعادة كلمة المرور.");
+            }
+            try {
+                await sendPasswordResetEmail(auth, email);
+                showSuccess("تم إرسال رابط تغيير كلمة المرور إلى " + email + " (تحقق أيضاً من مجلد الرسائل غير المرغوب فيها Spam).");
+            } catch (err) {
+                showError("تعذر إرسال رابط الاستعادة: تحقق من صحة البريد الإلكتروني أو وجود الحساب.");
             }
         });
 
@@ -1020,7 +1045,12 @@
 
         window.openModal = (id) => document.getElementById(id).classList.remove('hidden');
         window.closeModal = (id) => document.getElementById(id).classList.add('hidden');
+        function clearAuthMessages() {
+            document.getElementById('auth-error').classList.add('hidden');
+            document.getElementById('auth-success').classList.add('hidden');
+        }
         function showError(msg) { const el = document.getElementById('auth-error'); el.textContent = msg; el.classList.remove('hidden'); }
+        function showSuccess(msg) { const el = document.getElementById('auth-success'); el.textContent = msg; el.classList.remove('hidden'); }
         function showApp() { document.getElementById('auth-screen').classList.add('hidden'); document.getElementById('app-screen').classList.remove('hidden'); lucide.createIcons(); }
         function showAuth() { document.getElementById('app-screen').classList.add('hidden'); document.getElementById('auth-screen').classList.remove('hidden'); }
 
